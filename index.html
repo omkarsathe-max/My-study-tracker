@@ -17,7 +17,7 @@
         }
 
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        body { background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; }
 
         .container { max-width: 800px; width: 100%; }
 
@@ -38,25 +38,32 @@
 
         /* Calendar Section */
         .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; background: var(--card); padding: 15px; border-radius: 15px; border: 1px solid var(--border); }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; background: var(--card); padding: 15px; border-radius: 15px; border: 1px solid var(--border); touch-action: pan-y; }
         .day-label { text-align: center; font-weight: 600; color: var(--text-light); font-size: 0.8rem; padding-bottom: 10px; }
         .day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; font-size: 0.9rem; position: relative; transition: background 0.2s; }
         .day:hover { background: #f0fdf4; border-color: var(--primary); }
         .day.today { border: 2px solid var(--primary); font-weight: bold; }
-        .day.has-data { background: #eefdf5; }
-        .time-dot { width: 6px; height: 6px; background: var(--primary); border-radius: 50%; margin-top: 4px; }
+        .day.has-data { background: #fff5eb; border-color: #ffe0c1; }
+        .fire-icon { position: absolute; bottom: 2px; right: 4px; font-size: 1rem; }
+
+        /* Plus Button Container */
+        .plus-container { display: flex; justify-content: center; margin-top: 20px; margin-bottom: 30px; }
+        .btn-plus { background: var(--primary); color: white; font-size: 2rem; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(46, 204, 113, 0.4); padding: 0; line-height: 1; margin: 0; }
+        .btn-plus:hover { transform: scale(1.05); background: var(--primary-dark); }
 
         /* Modal */
-        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 100; }
-        .modal { background: white; width: 90%; max-width: 500px; padding: 2rem; border-radius: 15px; position: relative; }
-        .close-modal { position: absolute; right: 20px; top: 20px; font-size: 1.5rem; cursor: pointer; color: var(--text-light); }
-        textarea { width: 100%; height: 200px; margin-top: 1rem; padding: 15px; border: 1px solid var(--border); border-radius: 8px; resize: none; outline: none; }
-        textarea:focus { border-color: var(--primary); }
-        .modal-stats { margin-top: 10px; font-weight: bold; color: var(--primary-dark); }
+        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(2px); }
+        .modal { background: white; width: 90%; max-width: 500px; padding: 2rem; border-radius: 15px; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .close-modal { position: absolute; right: 20px; top: 20px; font-size: 2rem; cursor: pointer; color: var(--text-light); line-height: 1; }
+        .modal-header-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; color: var(--text); }
+        .modal-stats { margin-bottom: 15px; font-weight: bold; color: var(--streak); background: #fff5eb; padding: 10px; border-radius: 8px; display: inline-block; }
+        textarea { width: 100%; height: 200px; padding: 15px; border: 1px solid var(--border); border-radius: 8px; resize: none; outline: none; font-size: 1rem; background: #f8f9fa; }
+        textarea:focus { border-color: var(--primary); background: white; }
 
         @media (max-width: 500px) {
             #timer-display { font-size: 2.5rem; }
             .calendar-grid { gap: 5px; padding: 10px; }
+            .fire-icon { font-size: 0.8rem; bottom: 1px; right: 2px; }
         }
     </style>
 </head>
@@ -85,23 +92,27 @@
     </div>
     <div class="calendar-grid" id="calendarGrid">
         </div>
+
+    <div class="plus-container">
+        <button class="btn-plus" onclick="openTodayLog()">+</button>
+    </div>
 </div>
 
 <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
         <span class="close-modal" onclick="closeModal()">×</span>
-        <h2 id="modalDateDisplay">Date</h2>
-        <div class="modal-stats" id="modalTimeDisplay">Total Time: 0m</div>
-        <textarea id="dailyNotes" placeholder="What did you study today? (Auto-saves...)"></textarea>
+        <div class="modal-header-title" id="modalDateDisplay">Date</div>
+        <div class="modal-stats" id="modalTimeDisplay">⏱ Time Taken: 0 mins</div>
+        <textarea id="dailyNotes" placeholder="Write down exactly what you studied today... (Auto-saves as you type)"></textarea>
     </div>
 </div>
 
 <script>
     // --- STATE MANAGEMENT ---
     let db = JSON.parse(localStorage.getItem('studyTrackerDB')) || {
-        sessions: {}, // Key: "YYYY-MM-DD", Value: { minutes: 0, notes: "" }
-        timerStart: null, // Timestamp
-        currentAccumulated: 0 // ms
+        sessions: {}, 
+        timerStart: null, 
+        currentAccumulated: 0 
     };
 
     let timerInterval;
@@ -140,7 +151,6 @@
         if (!db.sessions[todayKey]) db.sessions[todayKey] = { minutes: 0, notes: "" };
         db.sessions[todayKey].minutes += minutesEarned;
 
-        // Reset Timer
         db.timerStart = null;
         db.currentAccumulated = 0;
         document.getElementById('startBtn').innerText = "Start Studying";
@@ -174,7 +184,7 @@
         update();
     }
 
-    // --- CALENDAR LOGIC ---
+    // --- CALENDAR LOGIC & SWIPE ---
     function renderCalendar() {
         const grid = document.getElementById('calendarGrid');
         const monthLabel = document.getElementById('monthDisplay');
@@ -184,7 +194,6 @@
         const month = currentViewDate.getMonth();
         monthLabel.innerText = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(currentViewDate);
 
-        // Labels
         ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
             const div = document.createElement('div');
             div.className = 'day-label';
@@ -198,17 +207,25 @@
         for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
 
         for (let d = 1; d <= daysInMonth; d++) {
+            // Fix timezone offset issue when generating keys
             const dateObj = new Date(year, month, d);
-            const dateKey = dateObj.toISOString().split('T')[0];
+            const offset = dateObj.getTimezoneOffset() * 60000;
+            const localISOTime = (new Date(dateObj - offset)).toISOString().split('T')[0];
+            const dateKey = localISOTime;
+            
+            const todayOffset = new Date().getTimezoneOffset() * 60000;
+            const todayKey = (new Date(Date.now() - todayOffset)).toISOString().split('T')[0];
+
             const dayEl = document.createElement('div');
             dayEl.className = 'day';
-            if (dateKey === new Date().toISOString().split('T')[0]) dayEl.classList.add('today');
+            if (dateKey === todayKey) dayEl.classList.add('today');
             
             dayEl.innerHTML = `<span>${d}</span>`;
             
+            // The 🔥 Icon Logic
             if (db.sessions[dateKey] && db.sessions[dateKey].minutes > 0) {
                 dayEl.classList.add('has-data');
-                dayEl.innerHTML += `<div class="time-dot"></div>`;
+                dayEl.innerHTML += `<div class="fire-icon">🔥</div>`;
             }
 
             dayEl.onclick = () => openModal(dateKey);
@@ -221,13 +238,43 @@
         renderCalendar();
     }
 
+    // Swipe Event Listeners
+    let touchstartX = 0;
+    let touchendX = 0;
+    const calendarElement = document.getElementById('calendarGrid');
+
+    calendarElement.addEventListener('touchstart', e => {
+        touchstartX = e.changedTouches[0].screenX;
+    }, {passive: true});
+
+    calendarElement.addEventListener('touchend', e => {
+        touchendX = e.changedTouches[0].screenX;
+        handleSwipe();
+    }, {passive: true});
+
+    function handleSwipe() {
+        const threshold = 50; 
+        if (touchendX < touchstartX - threshold) changeMonth(1);  // Swipe left -> next
+        if (touchendX > touchstartX + threshold) changeMonth(-1); // Swipe right -> prev
+    }
+
     // --- MODAL & NOTES ---
+    function openTodayLog() {
+        const todayOffset = new Date().getTimezoneOffset() * 60000;
+        const todayKey = (new Date(Date.now() - todayOffset)).toISOString().split('T')[0];
+        openModal(todayKey);
+    }
+
     function openModal(dateKey) {
         activeModalDate = dateKey;
         const data = db.sessions[dateKey] || { minutes: 0, notes: "" };
         
-        document.getElementById('modalDateDisplay').innerText = dateKey;
-        document.getElementById('modalTimeDisplay').innerText = `Total Study Time: ${data.minutes}m`;
+        // Format date beautifully for the header
+        const dateObj = new Date(dateKey);
+        const niceDate = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).format(dateObj);
+        
+        document.getElementById('modalDateDisplay').innerText = niceDate;
+        document.getElementById('modalTimeDisplay').innerText = `⏱ Time Taken: ${data.minutes} mins`;
         document.getElementById('dailyNotes').value = data.notes;
         
         document.getElementById('modalOverlay').style.display = 'flex';
@@ -250,22 +297,21 @@
     function updateStreak() {
         let streak = 0;
         let checkDate = new Date();
+        const offset = checkDate.getTimezoneOffset() * 60000;
         
         while (true) {
-            const key = checkDate.toISOString().split('T')[0];
+            const key = (new Date(checkDate - offset)).toISOString().split('T')[0];
             if (db.sessions[key] && db.sessions[key].minutes >= 1) {
                 streak++;
                 checkDate.setDate(checkDate.getDate() - 1);
             } else {
-                // If today is empty, check yesterday. If yesterday is also empty, streak is broken.
                 if (streak === 0) {
-                    let yesterday = new Date();
+                    let yesterday = new Date(checkDate);
                     yesterday.setDate(yesterday.getDate() - 1);
-                    const yKey = yesterday.toISOString().split('T')[0];
+                    const yKey = (new Date(yesterday - offset)).toISOString().split('T')[0];
                     if (!(db.sessions[yKey] && db.sessions[yKey].minutes >= 1)) {
                         break; 
                     } else {
-                        // Just haven't studied today yet, but yesterday was good.
                         checkDate.setDate(checkDate.getDate() - 1);
                         continue;
                     }
